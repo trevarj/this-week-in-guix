@@ -16,7 +16,7 @@ from xml.sax.saxutils import escape as xml_escape
 
 SITE_TITLE = "This Week in Guix"
 SITE_DESCRIPTION = "A reviewed weekly digest of Guix development and community activity."
-BASE_URL = "https://trevarj.github.io/this-week-in-guix"
+BASE_URL = "https://trevs.site/this-week-in-guix"
 
 
 @dataclass(frozen=True)
@@ -255,4 +255,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
