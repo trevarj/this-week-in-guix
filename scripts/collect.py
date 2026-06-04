@@ -116,6 +116,11 @@ def decode_subject(raw_subject: str) -> str:
     return "".join(decoded).strip()
 
 
+def decode_address_name(raw_address: str) -> str:
+    name, address = email.utils.parseaddr(raw_address)
+    return decode_subject(name) or address
+
+
 def thread_key(subject: str) -> str:
     clean = re.sub(r"^(\s*(re|fwd):\s*)+", "", subject, flags=re.I)
     clean = re.sub(r"\s+", " ", clean).strip().lower()
@@ -175,7 +180,7 @@ def collect_git(repo_name: str, url: str, since: datetime, until: datetime, work
         rev, files = changed_package_files(repo, since, until)
         for file_name in files:
             before = parse_packages(show_file(repo, rev, file_name))
-            after = parse_packages((repo / file_name).read_text(encoding="utf-8", errors="replace"))
+            after = parse_packages(show_file(repo, "HEAD", file_name))
             for package in sorted(after.keys() - before.keys()):
                 package_changes.append({"repo": repo_name, "package": package, "old_version": "", "new_version": after[package], "status": "added", "file": file_name, "commit_urls": []})
             for package in sorted(before.keys() - after.keys()):
@@ -291,7 +296,7 @@ def add_thread_message(message: email.message.Message, since: datetime, until: d
         },
     )
     thread["count"] += 1
-    thread["authors"].add(email.utils.parseaddr(message.get("From", ""))[0])
+    thread["authors"].add(decode_address_name(message.get("From", "")))
     thread["dates"].append(date)
     thread["message_ids"].append(message.get("Message-ID", ""))
 

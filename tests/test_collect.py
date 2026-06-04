@@ -27,6 +27,12 @@ class CollectTests(unittest.TestCase):
             collect.thread_key("RFC: installer changes"),
         )
 
+    def test_decode_address_name_handles_mime_names(self):
+        self.assertEqual(
+            collect.decode_address_name("=?utf-8?Q?Ludovic_Court=C3=A8s?= <ludo@example.org>"),
+            "Ludovic Courtès",
+        )
+
     def test_keyword_score_rewards_important_terms(self):
         score, tags = collect.keyword_score("RFC for security substitutes")
         self.assertGreaterEqual(score, 20)
