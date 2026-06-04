@@ -16,6 +16,7 @@ jobs:
           python-version: "3.x"
 
       - name: Collect weekly data
+        timeout-minutes: 10
         env:
           REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
           REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}

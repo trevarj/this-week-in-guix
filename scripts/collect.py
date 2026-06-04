@@ -185,17 +185,6 @@ def collect_git(repo_name: str, url: str, since: datetime, until: datetime, work
     sparse_paths = ["nongnu/packages"] if repo_name == "nonguix" else ["gnu/packages"]
     try:
         clone_repo(url, repo, sparse_paths)
-        rev, files = changed_package_files(repo, since, until)
-        for file_name in files:
-            before = parse_packages(show_file(repo, rev, file_name))
-            after = parse_packages(show_file(repo, "HEAD", file_name))
-            for package in sorted(after.keys() - before.keys()):
-                package_changes.append({"repo": repo_name, "package": package, "old_version": "", "new_version": after[package], "status": "added", "file": file_name, "commit_urls": []})
-            for package in sorted(before.keys() - after.keys()):
-                package_changes.append({"repo": repo_name, "package": package, "old_version": before[package], "new_version": "", "status": "removed", "file": file_name, "commit_urls": []})
-            for package in sorted(before.keys() & after.keys()):
-                if before[package] != after[package]:
-                    package_changes.append({"repo": repo_name, "package": package, "old_version": before[package], "new_version": after[package], "status": "updated", "file": file_name, "commit_urls": []})
         log_format = "%H%x1f%an%x1f%aI%x1f%s"
         commits = run_git(["log", f"--since={since.isoformat()}", f"--until={until.isoformat()}", f"--pretty=format:{log_format}"], repo).splitlines()
         for row in commits[:100]:
@@ -219,6 +208,27 @@ def collect_git(repo_name: str, url: str, since: datetime, until: datetime, work
     except Exception as exc:
         status.status = "warning"
         status.warnings.append(str(exc))
+        return status, items, package_changes
+    try:
+        rev, files = changed_package_files(repo, since, until)
+        file_limit = int(os.environ.get("TWIG_PACKAGE_FILE_LIMIT", "40"))
+        if len(files) > file_limit:
+            status.status = "warning"
+            status.warnings.append(f"package diff limited to {file_limit} of {len(files)} changed files")
+            files = files[:file_limit]
+        for file_name in files:
+            before = parse_packages(show_file(repo, rev, file_name))
+            after = parse_packages(show_file(repo, "HEAD", file_name))
+            for package in sorted(after.keys() - before.keys()):
+                package_changes.append({"repo": repo_name, "package": package, "old_version": "", "new_version": after[package], "status": "added", "file": file_name, "commit_urls": []})
+            for package in sorted(before.keys() - after.keys()):
+                package_changes.append({"repo": repo_name, "package": package, "old_version": before[package], "new_version": "", "status": "removed", "file": file_name, "commit_urls": []})
+            for package in sorted(before.keys() & after.keys()):
+                if before[package] != after[package]:
+                    package_changes.append({"repo": repo_name, "package": package, "old_version": before[package], "new_version": after[package], "status": "updated", "file": file_name, "commit_urls": []})
+    except Exception as exc:
+        status.status = "warning"
+        status.warnings.append(f"package diff failed: {exc}")
     return status, items, package_changes
 
 
