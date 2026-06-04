@@ -71,6 +71,9 @@ One concise paragraph with links.
 
 - Every story must link to at least one public source.
 - Do not add facts that are not present in the bundle or reader-submission source links.
+- Do not mention the bundle, collector, scoring, scraper, artifact, generation process, or draft status in public post text.
+- Do not add interpretive flavor such as "stood out", "largest", "active topic", "near the top", or "drew sustained discussion" unless the linked source itself establishes that framing.
+- Write entries like bland news briefs: factual headline, one short factual paragraph, links to sources.
 - Treat source scores as suggestions, not truth.
 - Prefer official Guix news, cross-source mentions, high-reply mailing-list threads, high-comment forge issues, and notable package changes.
 - Include at most 8 main stories unless the user asks for more.
@@ -80,7 +83,8 @@ One concise paragraph with links.
 - Do not quote long excerpts from Reddit, email, or web pages; summarize and cite.
 - Use concise, neutral prose. Avoid hype.
 - Use `###` subheadings for each entry, followed by one short paragraph. Avoid bullet lists for story entries.
-- Do not add a `Source Notes` section. If a source limitation affects the issue, include one short collection note near the top.
+- Make `###` subheadings read like plain news headlines, not commentary.
+- Do not add a `Source Notes` section. Keep collection limitations out of public copy unless the user explicitly asks to publish them.
 - Keep rejected/uncertain candidates out of the final post.
 
 ## Review Workflow
