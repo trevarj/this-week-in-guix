@@ -42,15 +42,29 @@ Short opening paragraph.
 
 ## Top Stories
 
+### Story headline
+
+One concise paragraph with links.
+
 ## Development
+
+### Story headline
+
+One concise paragraph with links.
 
 ## Packages
 
+### Story headline
+
+One concise paragraph with links.
+
 ## Community
 
-## Reader Submissions
+### Story headline
 
-## Source Notes
+One concise paragraph with links.
+
+## Reader Submissions
 ```
 
 ## Rules
@@ -65,7 +79,9 @@ Short opening paragraph.
 - Mark emailed submissions as `Reader submission` unless independently verified from a public link.
 - Do not quote long excerpts from Reddit, email, or web pages; summarize and cite.
 - Use concise, neutral prose. Avoid hype.
-- Keep rejected/uncertain candidates out of the final post unless they belong in `Source Notes`.
+- Use `###` subheadings for each entry, followed by one short paragraph. Avoid bullet lists for story entries.
+- Do not add a `Source Notes` section. If a source limitation affects the issue, include one short collection note near the top.
+- Keep rejected/uncertain candidates out of the final post.
 
 ## Review Workflow
 
@@ -77,7 +93,6 @@ Short opening paragraph.
    - 2-3 development/community items.
    - A short package section.
    - Reader submissions only when provided.
-   - Source notes only for meaningful scrape warnings or weak-but-interesting items.
 5. Draft the post in Markdown.
-6. Check that each bullet has a link.
+6. Check that each entry paragraph has a link.
 7. Ask the user to review before rendering and committing.
