@@ -1,0 +1,31 @@
+name: weekly collect
+
+on:
+  schedule:
+    - cron: "0 21 * * 6"
+  workflow_dispatch:
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Collect weekly data
+        env:
+          REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
+          REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
+        run: python3 scripts/collect.py --out bundle.json --summary summary.md
+
+      - name: Upload review bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: this-week-in-guix-${{ github.run_id }}
+          path: |
+            bundle.json
+            summary.md
+          retention-days: 14
