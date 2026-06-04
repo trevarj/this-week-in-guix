@@ -39,16 +39,32 @@ class CollectTests(unittest.TestCase):
             "https://codeberg.org/guix/guix/commit/abc123",
         )
 
-    def test_reddit_fallback_items_can_represent_missing_scores(self):
-        item = collect.Item(
-            id="reddit-rss:x",
-            source="reddit-r-guix",
-            kind="reddit-post",
-            title="Guix question",
-            url="https://www.reddit.com/r/GUIX/comments/x",
-            signals={"upvotes": None, "comments": None, "rss_fallback": True},
+    def test_reddit_is_skipped_without_api_credentials(self):
+        old_id = os.environ.pop("REDDIT_CLIENT_ID", None)
+        old_secret = os.environ.pop("REDDIT_CLIENT_SECRET", None)
+        try:
+            status, items = collect.collect_reddit(collect.now_utc(), collect.now_utc())
+        finally:
+            if old_id is not None:
+                os.environ["REDDIT_CLIENT_ID"] = old_id
+            if old_secret is not None:
+                os.environ["REDDIT_CLIENT_SECRET"] = old_secret
+        self.assertEqual(items, [])
+        self.assertEqual(status.status, "warning")
+        self.assertIn("Reddit skipped", status.warnings[0])
+
+    def test_mastodon_item_score_uses_interactions(self):
+        post = collect.Item(
+            id="mastodon:1",
+            source="mastodon-guix-mastodon.social",
+            kind="social-post",
+            title="Guix release notes",
+            url="https://mastodon.social/@example/1",
+            score=9,
+            signals={"favorites": 3, "boosts": 2, "replies": 1},
         )
-        self.assertTrue(item.signals["rss_fallback"])
+        self.assertEqual(post.score, 9)
+        self.assertEqual(post.signals["boosts"], 2)
 
     def test_keyword_score_rewards_important_terms(self):
         score, tags = collect.keyword_score("RFC for security substitutes")

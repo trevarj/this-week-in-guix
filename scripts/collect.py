@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import email
+import html
 import json
 import os
 import re
@@ -353,8 +354,12 @@ def collect_atom(name: str, url: str, since: datetime, until: datetime) -> tuple
 
 
 def html_unescape(value: str) -> str:
-    import html
     return html.unescape(value)
+
+
+def strip_html(value: str) -> str:
+    text = re.sub(r"<[^>]+>", " ", value)
+    return normalize_excerpt(html_unescape(text))
 
 
 def reddit_token() -> str | None:
@@ -381,39 +386,8 @@ def collect_reddit(since: datetime, until: datetime) -> tuple[SourceStatus, list
     items: list[Item] = []
     token = reddit_token()
     if not token:
-        status.url = "https://www.reddit.com/r/GUIX/new/.rss?limit=100"
-        status.warnings.append("REDDIT_CLIENT_ID and REDDIT_CLIENT_SECRET are not configured; using RSS fallback without upvote/comment signals")
-        try:
-            data = http_get(status.url).decode("utf-8", errors="replace")
-            for entry in re.findall(r"<entry>(.*?)</entry>", data, flags=re.S):
-                title_match = re.search(r"<title[^>]*>(.*?)</title>", entry, re.S)
-                updated_match = re.search(r"<updated>(.*?)</updated>", entry)
-                link_match = re.search(r'<link[^>]+href="([^"]+)"', entry)
-                if not title_match or not updated_match or not link_match:
-                    continue
-                published = parse_iso(updated_match.group(1))
-                if published < since or published > until:
-                    continue
-                title = html_unescape(re.sub("<.*?>", "", title_match.group(1)).strip())
-                bonus, tags = keyword_score(title)
-                items.append(Item(
-                    id=f"reddit-rss:{link_match.group(1)}",
-                    source="reddit-r-guix",
-                    kind="reddit-post",
-                    title=title,
-                    url=link_match.group(1),
-                    published_at=published.isoformat(),
-                    updated_at=published.isoformat(),
-                    score=2 + bonus,
-                    signals={"upvotes": None, "comments": None, "rss_fallback": True},
-                    tags=tags,
-                    excerpt=title,
-                ))
-            status.item_count = len(items)
-            status.status = "warning" if status.warnings else "ok"
-        except Exception as exc:
-            status.status = "warning"
-            status.warnings.append(str(exc))
+        status.status = "warning"
+        status.warnings.append("REDDIT_CLIENT_ID and REDDIT_CLIENT_SECRET are not configured; Reddit skipped because RSS has no score/comment signals")
         return status, items
     try:
         data = json.loads(http_get(url, {"Authorization": f"Bearer {token}"}))
@@ -437,6 +411,45 @@ def collect_reddit(since: datetime, until: datetime) -> tuple[SourceStatus, list
                 signals={"upvotes": post.get("score", 0), "comments": post.get("num_comments", 0)},
                 tags=tags,
                 excerpt=normalize_excerpt(post.get("selftext", "") or title),
+            ))
+        status.item_count = len(items)
+    except Exception as exc:
+        status.status = "warning"
+        status.warnings.append(str(exc))
+    return status, items
+
+
+def collect_mastodon_tag(instance: str, tag: str, since: datetime, until: datetime) -> tuple[SourceStatus, list[Item]]:
+    base = instance.rstrip("/")
+    url = f"{base}/api/v1/timelines/tag/{urllib.parse.quote(tag)}?limit=40"
+    status = SourceStatus(f"mastodon-{tag}-{urllib.parse.urlparse(base).netloc}", "mastodon", url)
+    items: list[Item] = []
+    try:
+        data = json.loads(http_get(url))
+        for post in data:
+            published = parse_iso(post["created_at"])
+            if published < since or published > until:
+                continue
+            account = post.get("account", {})
+            content = strip_html(post.get("content", ""))
+            title = content or post.get("url") or "Mastodon post"
+            replies = int(post.get("replies_count", 0))
+            boosts = int(post.get("reblogs_count", 0))
+            favorites = int(post.get("favourites_count", 0))
+            bonus, tags = keyword_score(content)
+            items.append(Item(
+                id=f"mastodon:{post.get('id')}",
+                source=status.name,
+                kind="social-post",
+                title=title,
+                url=post.get("url") or post.get("uri") or url,
+                author=account.get("acct", ""),
+                published_at=published.isoformat(),
+                updated_at=published.isoformat(),
+                score=favorites + boosts * 2 + replies * 2 + bonus,
+                signals={"favorites": favorites, "boosts": boosts, "replies": replies, "tag": tag, "instance": base},
+                tags=tags + [f"#{tag}"],
+                excerpt=content,
             ))
         status.item_count = len(items)
     except Exception as exc:
@@ -504,6 +517,18 @@ def collect(since: datetime, until: datetime) -> dict[str, Any]:
     status, reddit_items = collect_reddit(since, until)
     sources.append(status)
     items.extend(reddit_items)
+    mastodon_instances = [value.strip() for value in os.environ.get("MASTODON_INSTANCES", "https://mastodon.social").split(",") if value.strip()]
+    mastodon_tags = [value.strip().lstrip("#") for value in os.environ.get("MASTODON_TAGS", "guix,GUIX").split(",") if value.strip()]
+    seen_mastodon_urls: set[str] = set()
+    for instance in mastodon_instances:
+        for tag in mastodon_tags:
+            status, mastodon_items = collect_mastodon_tag(instance, tag, since, until)
+            sources.append(status)
+            for item in mastodon_items:
+                if item.url in seen_mastodon_urls:
+                    continue
+                seen_mastodon_urls.add(item.url)
+                items.append(item)
     codeberg_url = "https://codeberg.org/api/v1/repos/guix/guix/issues?state=all&limit=50"
     status, api_items = collect_json_api("codeberg-guix", "forge-issue", codeberg_url, since)
     sources.append(status)
