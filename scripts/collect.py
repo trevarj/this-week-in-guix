@@ -99,6 +99,14 @@ def strip_git_suffix(url: str) -> str:
     return url[:-4] if url.endswith(".git") else url
 
 
+def commit_url(repo_name: str, url: str, commit: str) -> str:
+    if "gitlab.com" in url or "codeberg.org" in url:
+        return f"{strip_git_suffix(url)}/commit/{commit}"
+    if repo_name == "guix":
+        return f"https://git.savannah.gnu.org/cgit/guix.git/commit/?id={commit}"
+    return strip_git_suffix(url)
+
+
 def keyword_score(text: str) -> tuple[int, list[str]]:
     lowered = text.lower()
     tags = [word for word in KEYWORDS if word in lowered]
@@ -198,7 +206,7 @@ def collect_git(repo_name: str, url: str, since: datetime, until: datetime, work
                 source=repo_name,
                 kind="commit",
                 title=subject,
-                url=f"{strip_git_suffix(url)}/commit/{commit}" if "gitlab.com" in url else f"https://git.savannah.gnu.org/cgit/guix.git/commit/?id={commit}",
+                url=commit_url(repo_name, url, commit),
                 author=author,
                 published_at=published_at,
                 updated_at=published_at,
@@ -438,7 +446,7 @@ def collect(since: datetime, until: datetime) -> dict[str, Any]:
     with tempfile.TemporaryDirectory() as tmp:
         workdir = Path(tmp)
         for name, url in [
-            ("guix", "https://git.savannah.gnu.org/git/guix.git"),
+            ("guix", "https://codeberg.org/guix/guix.git"),
             ("nonguix", "https://gitlab.com/nonguix/nonguix.git"),
         ]:
             status, repo_items, repo_changes = collect_git(name, url, since, until, workdir)

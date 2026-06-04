@@ -33,6 +33,12 @@ class CollectTests(unittest.TestCase):
             "Ludovic Courtès",
         )
 
+    def test_commit_url_uses_codeberg_for_guix(self):
+        self.assertEqual(
+            collect.commit_url("guix", "https://codeberg.org/guix/guix.git", "abc123"),
+            "https://codeberg.org/guix/guix/commit/abc123",
+        )
+
     def test_keyword_score_rewards_important_terms(self):
         score, tags = collect.keyword_score("RFC for security substitutes")
         self.assertGreaterEqual(score, 20)
