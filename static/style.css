@@ -1,13 +1,31 @@
 :root {
+  color-scheme: dark;
+  --bg: #151712;
+  --paper: #20231b;
+  --paper-strong: #2a2f22;
+  --ink: #f4f0df;
+  --muted: #c4bea8;
+  --line: #4b523d;
+  --green: #7cc242;
+  --green-dark: #a6d969;
+  --yellow: #f6d32d;
+  --blue: #8ab4f8;
+  --shadow: rgba(0, 0, 0, .28);
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
   --bg: #fbfbf5;
   --paper: #fffef8;
+  --paper-strong: #f5f2df;
   --ink: #24221f;
   --muted: #6f6a61;
   --line: #d8d2b6;
   --green: #4e9a06;
   --green-dark: #2f6500;
-  --yellow: #f6d32d;
+  --yellow: #d8a600;
   --blue: #245c8a;
+  --shadow: rgba(63, 56, 32, .12);
 }
 
 * {
@@ -33,7 +51,8 @@ a:hover {
 .site-header {
   border-top: 5px solid var(--green);
   border-bottom: 1px solid var(--line);
-  background: linear-gradient(180deg, #fffef8 0%, #f5f2df 100%);
+  background: linear-gradient(180deg, var(--paper-strong) 0%, var(--paper) 100%);
+  box-shadow: 0 8px 24px var(--shadow);
 }
 
 .site-header-inner,
@@ -60,7 +79,7 @@ main,
 }
 
 .brand img {
-  width: 150px;
+  width: 56px;
   height: auto;
 }
 
@@ -80,6 +99,39 @@ nav a {
   color: var(--green-dark);
   font-weight: 700;
   text-decoration: none;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+
+.theme-toggle {
+  width: 42px;
+  height: 28px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--paper);
+  cursor: pointer;
+  padding: 3px;
+}
+
+.theme-toggle span {
+  display: block;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--yellow);
+  box-shadow: 0 0 0 2px rgba(246, 211, 45, .2);
+  transform: translateX(0);
+  transition: transform .16s ease;
+}
+
+:root[data-theme="light"] .theme-toggle span {
+  transform: translateX(14px);
+  background: var(--green);
 }
 
 main {
@@ -151,7 +203,7 @@ pre {
 }
 
 code {
-  background: #eee8c8;
+  background: var(--paper-strong);
   border-radius: 3px;
   padding: 1px 4px;
 }
@@ -159,7 +211,7 @@ code {
 pre {
   overflow-x: auto;
   border: 1px solid var(--line);
-  background: #f3efd7;
+  background: var(--paper-strong);
   padding: 14px;
 }
 
@@ -176,7 +228,6 @@ pre {
   }
 
   .brand img {
-    width: 132px;
+    width: 52px;
   }
 }
-

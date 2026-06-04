@@ -131,14 +131,19 @@ def page(title: str, body: str) -> str:
   <header class="site-header">
     <div class="site-header-inner">
       <a class="brand" href="/this-week-in-guix/">
-        <img src="/this-week-in-guix/static/guix-logo.svg" alt="GNU Guix logo">
+        <img src="/this-week-in-guix/static/guix-logo.png" alt="GNU Guix logo">
         <span class="brand-title">This Week in Guix</span>
       </a>
-      <nav aria-label="Site navigation">
-        <a href="/this-week-in-guix/">Issues</a>
-        <a href="/this-week-in-guix/submit.html">Submit</a>
-        <a href="/this-week-in-guix/rss.xml">RSS</a>
-      </nav>
+      <div class="header-actions">
+        <nav aria-label="Site navigation">
+          <a href="/this-week-in-guix/">Issues</a>
+          <a href="/this-week-in-guix/submit.html">Submit</a>
+          <a href="/this-week-in-guix/rss.xml">RSS</a>
+        </nav>
+        <button class="theme-toggle" type="button" aria-label="Switch to light theme" title="Toggle light theme">
+          <span aria-hidden="true"></span>
+        </button>
+      </div>
     </div>
   </header>
   <main>
@@ -147,6 +152,7 @@ def page(title: str, body: str) -> str:
   <footer class="site-footer">
     Reviewed weekly notes from public Guix sources and reader submissions.
   </footer>
+  <script src="/this-week-in-guix/static/theme-toggle.js"></script>
 </body>
 </html>
 """

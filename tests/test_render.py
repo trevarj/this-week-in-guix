@@ -18,7 +18,8 @@ class RenderTests(unittest.TestCase):
             (root / "posts").mkdir()
             (root / "static").mkdir()
             (root / "static" / "style.css").write_text("", encoding="utf-8")
-            (root / "static" / "guix-logo.svg").write_text("<svg/>", encoding="utf-8")
+            (root / "static" / "theme-toggle.js").write_text("", encoding="utf-8")
+            (root / "static" / "guix-logo.png").write_bytes(b"\x89PNG\r\n\x1a\n")
             (root / "posts" / "2026-06-06.md").write_text(
                 "# This Week in Guix: 2026-06-06\n<!-- date: 2026-06-06 -->\n\nA [source](https://guix.gnu.org).",
                 encoding="utf-8",
@@ -29,9 +30,12 @@ class RenderTests(unittest.TestCase):
             self.assertTrue((out / "submit.html").exists())
             self.assertTrue((out / "rss.xml").exists())
             self.assertTrue((out / "posts" / "2026-06-06.html").exists())
+            self.assertTrue((out / "static" / "guix-logo.png").exists())
+            self.assertTrue((out / "static" / "theme-toggle.js").exists())
             self.assertIn("this-week-in-guix@trevs.site", (out / "submit.html").read_text(encoding="utf-8"))
+            self.assertIn("guix-logo.png", (out / "index.html").read_text(encoding="utf-8"))
+            self.assertIn("theme-toggle.js", (out / "index.html").read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":
     unittest.main()
-
