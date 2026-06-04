@@ -381,8 +381,39 @@ def collect_reddit(since: datetime, until: datetime) -> tuple[SourceStatus, list
     items: list[Item] = []
     token = reddit_token()
     if not token:
-        status.status = "warning"
-        status.warnings.append("REDDIT_CLIENT_ID and REDDIT_CLIENT_SECRET are not configured")
+        status.url = "https://www.reddit.com/r/GUIX/new/.rss?limit=100"
+        status.warnings.append("REDDIT_CLIENT_ID and REDDIT_CLIENT_SECRET are not configured; using RSS fallback without upvote/comment signals")
+        try:
+            data = http_get(status.url).decode("utf-8", errors="replace")
+            for entry in re.findall(r"<entry>(.*?)</entry>", data, flags=re.S):
+                title_match = re.search(r"<title[^>]*>(.*?)</title>", entry, re.S)
+                updated_match = re.search(r"<updated>(.*?)</updated>", entry)
+                link_match = re.search(r'<link[^>]+href="([^"]+)"', entry)
+                if not title_match or not updated_match or not link_match:
+                    continue
+                published = parse_iso(updated_match.group(1))
+                if published < since or published > until:
+                    continue
+                title = html_unescape(re.sub("<.*?>", "", title_match.group(1)).strip())
+                bonus, tags = keyword_score(title)
+                items.append(Item(
+                    id=f"reddit-rss:{link_match.group(1)}",
+                    source="reddit-r-guix",
+                    kind="reddit-post",
+                    title=title,
+                    url=link_match.group(1),
+                    published_at=published.isoformat(),
+                    updated_at=published.isoformat(),
+                    score=2 + bonus,
+                    signals={"upvotes": None, "comments": None, "rss_fallback": True},
+                    tags=tags,
+                    excerpt=title,
+                ))
+            status.item_count = len(items)
+            status.status = "warning" if status.warnings else "ok"
+        except Exception as exc:
+            status.status = "warning"
+            status.warnings.append(str(exc))
         return status, items
     try:
         data = json.loads(http_get(url, {"Authorization": f"Bearer {token}"}))

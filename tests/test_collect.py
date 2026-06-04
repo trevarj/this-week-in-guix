@@ -39,6 +39,17 @@ class CollectTests(unittest.TestCase):
             "https://codeberg.org/guix/guix/commit/abc123",
         )
 
+    def test_reddit_fallback_items_can_represent_missing_scores(self):
+        item = collect.Item(
+            id="reddit-rss:x",
+            source="reddit-r-guix",
+            kind="reddit-post",
+            title="Guix question",
+            url="https://www.reddit.com/r/GUIX/comments/x",
+            signals={"upvotes": None, "comments": None, "rss_fallback": True},
+        )
+        self.assertTrue(item.signals["rss_fallback"])
+
     def test_keyword_score_rewards_important_terms(self):
         score, tags = collect.keyword_score("RFC for security substitutes")
         self.assertGreaterEqual(score, 20)
