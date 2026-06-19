@@ -12,6 +12,20 @@ class RenderTests(unittest.TestCase):
         self.assertIn('<a href="https://guix.gnu.org">Guix</a>', html)
         self.assertIn("&lt;script&gt;", html)
 
+    def test_markdown_link_with_nested_brackets(self):
+        md = (
+            "Update in [nongnu: firefox: Update to 151.0.3 [security fixes].]"
+            "(https://gitlab.com/nonguix/nonguix/commit/abc)."
+        )
+        html = render.markdown_to_html(md)
+        self.assertIn(
+            '<a href="https://gitlab.com/nonguix/nonguix/commit/abc">'
+            "nongnu: firefox: Update to 151.0.3 [security fixes].</a>",
+            html,
+        )
+        # The trailing sentence period after the link must stay outside the <a>.
+        self.assertIn(".</a>.", html)
+
     def test_markdown_adds_heading_ids_for_sections(self):
         html = render.markdown_to_html("# Title\n\n## Top Stories\n\n### A Story")
         # h1 stays plain (page title); h2/h3 get slug anchor ids.

@@ -77,7 +77,13 @@ def format_date(dt: datetime) -> str:
 def inline_markdown(text: str) -> str:
     escaped = html.escape(text)
     escaped = re.sub(r"`([^`]+)`", r"<code>\1</code>", escaped)
-    escaped = re.sub(r"\[([^\]]+)\]\((https?://[^)\s]+|/[^)\s]+)\)", r'<a href="\2">\1</a>', escaped)
+    # Link text may contain one level of balanced [brackets] (e.g. a commit
+    # subject like "Update to 151.0.3 [security fixes]").
+    escaped = re.sub(
+        r"\[((?:[^\[\]]|\[[^\]]*\])*)\]\((https?://[^)\s]+|/[^)\s]+)\)",
+        r'<a href="\2">\1</a>',
+        escaped,
+    )
     return escaped
 
 
