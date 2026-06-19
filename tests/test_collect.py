@@ -76,6 +76,38 @@ class CollectTests(unittest.TestCase):
         items = collect.parse_reddit_html(html, since, until)
         self.assertEqual(items, [])
 
+    def test_parse_reddit_html_captures_image_thumbnail(self):
+        html = (
+            '<div id="thing_t3_img" data-fullname="t3_img" data-author="u" '
+            'data-permalink="/r/GUIX/comments/img/desktop/" data-comments-count="3" '
+            'data-score="40" data-timestamp="1781760625000">'
+            '<a class="thumbnail may-blank" href="https://i.redd.it/abc.jpg">'
+            '<img src="https://b.thumbs.redditmedia.com/abc.jpg" alt=""></a>'
+            '<p class="title"><a class="title" href="https://i.redd.it/abc.jpg">'
+            'My Guix desktop screenshot</a></p></div>'
+        )
+        since = collect.parse_iso("2026-06-12T00:00:00+00:00")
+        until = collect.parse_iso("2026-06-19T00:00:00+00:00")
+        items = collect.parse_reddit_html(html, since, until)
+        self.assertEqual(len(items), 1)
+        self.assertEqual(
+            items[0].thumbnail, "https://b.thumbs.redditmedia.com/abc.jpg"
+        )
+
+    def test_parse_reddit_html_self_post_has_no_thumbnail(self):
+        html = (
+            '<div id="thing_t3_self" data-fullname="t3_self" data-author="u" '
+            'data-permalink="/r/GUIX/comments/self/q/" data-comments-count="1" '
+            'data-score="10" data-timestamp="1781760625000">'
+            '<a class="thumbnail self may-blank" href="/r/GUIX/comments/self/q/"></a>'
+            '<a class="title" href="https://example.com">A self post</a></div>'
+        )
+        since = collect.parse_iso("2026-06-12T00:00:00+00:00")
+        until = collect.parse_iso("2026-06-19T00:00:00+00:00")
+        items = collect.parse_reddit_html(html, since, until)
+        self.assertEqual(len(items), 1)
+        self.assertEqual(items[0].thumbnail, "")
+
     def test_mastodon_item_score_uses_interactions(self):
         post = collect.Item(
             id="mastodon:1",

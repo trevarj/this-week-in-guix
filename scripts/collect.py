@@ -367,6 +367,10 @@ def strip_html(value: str) -> str:
 
 
 REDDIT_THING_RE = re.compile(r'data-fullname="(t3_\w+)".*?<a class="title[^"]*"[^>]*>(.*?)</a>', re.S)
+# Image posts link their thumbnail inside <a class="thumbnail ...">; self/link
+# posts use a CSS sprite instead and have no <img> here, so this only matches
+# posts that actually carry a previewable thumbnail.
+REDDIT_THUMB_RE = re.compile(r'<a class="thumbnail[^"]*"[^>]*>\s*<img[^>]*src="([^"]+)"', re.S)
 
 
 def parse_reddit_html(html_text: str, since: datetime, until: datetime) -> list[Item]:
@@ -375,6 +379,8 @@ def parse_reddit_html(html_text: str, since: datetime, until: datetime) -> list[
     Each post is a ``<div id="thing_t3_...">`` whose opening tag carries the
     metadata we need as ``data-*`` attributes (score, comments, author,
     permalink, timestamp); the title lives in the first ``<a class="title">``.
+    Image posts also expose a thumbnail ``<img>`` inside ``<a class="thumbnail">``,
+    which is captured as the link-preview thumbnail (self/link posts have none).
     """
     items: list[Item] = []
     for block in re.split(r'(?=id="thing_t3_\w+")', html_text):
@@ -394,6 +400,8 @@ def parse_reddit_html(html_text: str, since: datetime, until: datetime) -> list[
         title = strip_html(raw_title)
         bonus, tags = keyword_score(title)
         permalink = attrs.get("permalink", "")
+        thumb_match = REDDIT_THUMB_RE.search(block)
+        thumbnail = thumb_match.group(1) if thumb_match else ""
         items.append(Item(
             id=f"reddit:{fullname}",
             source="reddit-r-guix",
@@ -407,6 +415,7 @@ def parse_reddit_html(html_text: str, since: datetime, until: datetime) -> list[
             signals={"upvotes": score, "comments": comments},
             tags=tags,
             excerpt=title,
+            thumbnail=thumbnail,
         ))
     return items
 
