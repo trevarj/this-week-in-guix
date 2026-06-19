@@ -2,7 +2,7 @@ name: weekly collect
 
 on:
   schedule:
-    - cron: "0 21 * * 6"
+    - cron: "0 12 * * 5"
   workflow_dispatch:
 
 permissions:
@@ -20,9 +20,6 @@ jobs:
 
       - name: Collect weekly data
         timeout-minutes: 10
-        env:
-          REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
-          REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
         run: python3 scripts/collect.py --out bundle.json --summary summary.md
 
       - name: Upload review bundle

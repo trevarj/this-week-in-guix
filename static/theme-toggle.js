@@ -3,31 +3,61 @@
 
   var root = document.documentElement;
 
-  /* ----- Theme toggle ----- */
+  /* ----- Theme toggle -----
+     Token strategy (see style.css):
+       - :root holds dark tokens (default).
+       - @media (prefers-color-scheme: light) :root:not([data-theme]) applies
+         light tokens when the user has NO stored preference.
+       - :root[data-theme="light"] forces light.
+       - :root[data-theme="dark"] forces dark (beats the OS light media query
+         via selector specificity).
+     So we always set an explicit data-theme on a user choice — never delete
+     it — so a "dark" choice wins over an OS "light" preference. */
 
   var stored = localStorage.getItem("twg-theme");
   if (stored === "light") {
     root.dataset.theme = "light";
+  } else if (stored === "dark") {
+    root.dataset.theme = "dark";
   }
+  /* stored === null: leave data-theme unset so @media (prefers-color-scheme)
+     decides, applying light tokens when the OS prefers light. */
 
   var button = document.querySelector(".theme-toggle");
   if (button) {
+    // The effective theme is light when data-theme is explicitly light, OR
+    // when no explicit override is set and the OS prefers light.
+    function osPrefersLight() {
+      return (
+        "matchMedia" in window &&
+        window.matchMedia("(prefers-color-scheme: light)").matches
+      );
+    }
+    function isLightTheme() {
+      if (root.dataset.theme) {
+        return root.dataset.theme === "light";
+      }
+      return osPrefersLight();
+    }
+
     function updateLabel() {
-      var isLight = root.dataset.theme === "light";
-      button.setAttribute("aria-label", isLight ? "Switch to dark theme" : "Switch to light theme");
-      button.setAttribute("title", isLight ? "Switch to dark theme" : "Switch to light theme");
+      var light = isLightTheme();
+      button.setAttribute(
+        "aria-label",
+        light ? "Switch to dark theme" : "Switch to light theme"
+      );
+      button.setAttribute(
+        "title",
+        light ? "Switch to dark theme" : "Switch to light theme"
+      );
     }
 
     updateLabel();
     button.addEventListener("click", function () {
-      var next = root.dataset.theme === "light" ? "dark" : "light";
-      if (next === "light") {
-        root.dataset.theme = "light";
-        localStorage.setItem("twg-theme", "light");
-      } else {
-        delete root.dataset.theme;
-        localStorage.setItem("twg-theme", "dark");
-      }
+      var next = isLightTheme() ? "dark" : "light";
+      // Always set an explicit override so it beats the OS media query.
+      root.dataset.theme = next;
+      localStorage.setItem("twg-theme", next);
       updateLabel();
     });
   }

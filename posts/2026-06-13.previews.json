@@ -1,0 +1,14 @@
+[
+  {
+    "url": "https://fosstodon.org/@simendsjo/116716823527950923",
+    "image": "https://cdn.fosstodon.org/media_attachments/files/116/716/811/196/794/659/small/12efe09ac1e8007e.png",
+    "alt": "Screenshot of McCLIM 1.0.0 examples running on Guix.",
+    "title": "McCLIM 1.0.0 demo running on Guix"
+  },
+  {
+    "url": "https://social.tchncs.de/@franzs/116727288143300716",
+    "image": "https://f2.tchncs.de/media_attachments/files/116/727/268/069/372/965/small/9a988e626bbb3626.png",
+    "alt": "GUI installer for #guix",
+    "title": "Upcoming GUI installer for Guix"
+  }
+]

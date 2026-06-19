@@ -60,6 +60,10 @@ class Item:
     tags: list[str] = field(default_factory=list)
     excerpt: str = ""
     related_urls: list[str] = field(default_factory=list)
+    # Thumbnail URL + alt text for link previews (only Mastodon image
+    # attachments populate these; Reddit/forge/mailing-list items stay empty).
+    thumbnail: str = ""
+    image_alt: str = ""
 
 
 def now_utc() -> datetime:
@@ -362,61 +366,117 @@ def strip_html(value: str) -> str:
     return normalize_excerpt(html_unescape(text))
 
 
-def reddit_token() -> str | None:
-    client_id = os.environ.get("REDDIT_CLIENT_ID")
-    client_secret = os.environ.get("REDDIT_CLIENT_SECRET")
-    if not client_id or not client_secret:
-        return None
-    body = urllib.parse.urlencode({"grant_type": "client_credentials"}).encode()
-    req = urllib.request.Request(
-        "https://www.reddit.com/api/v1/access_token",
-        data=body,
-        headers={"User-Agent": USER_AGENT},
-    )
-    password_mgr = urllib.request.HTTPPasswordMgrWithDefaultRealm()
-    password_mgr.add_password(None, "https://www.reddit.com/api/v1/access_token", client_id, client_secret)
-    opener = urllib.request.build_opener(urllib.request.HTTPBasicAuthHandler(password_mgr))
-    with opener.open(req, timeout=30) as response:
-        return json.loads(response.read())["access_token"]
+REDDIT_THING_RE = re.compile(r'data-fullname="(t3_\w+)".*?<a class="title[^"]*"[^>]*>(.*?)</a>', re.S)
+
+
+def parse_reddit_html(html_text: str, since: datetime, until: datetime) -> list[Item]:
+    """Parse old.reddit.com listing HTML into items.
+
+    Each post is a ``<div id="thing_t3_...">`` whose opening tag carries the
+    metadata we need as ``data-*`` attributes (score, comments, author,
+    permalink, timestamp); the title lives in the first ``<a class="title">``.
+    """
+    items: list[Item] = []
+    for block in re.split(r'(?=id="thing_t3_\w+")', html_text):
+        match = REDDIT_THING_RE.search(block)
+        if not match:
+            continue
+        fullname, raw_title = match.group(1), match.group(2)
+        attrs = dict(re.findall(r'data-(\w[\w-]*)="([^"]*)"', block[:match.start() + 2000]))
+        timestamp = attrs.get("timestamp")
+        if not timestamp:
+            continue
+        published = datetime.fromtimestamp(int(timestamp) / 1000, timezone.utc)
+        if published < since or published > until:
+            continue
+        score = int(attrs.get("score", 0))
+        comments = int(attrs.get("comments-count", 0))
+        title = strip_html(raw_title)
+        bonus, tags = keyword_score(title)
+        permalink = attrs.get("permalink", "")
+        items.append(Item(
+            id=f"reddit:{fullname}",
+            source="reddit-r-guix",
+            kind="reddit-post",
+            title=title,
+            url="https://www.reddit.com" + permalink if permalink else "https://www.reddit.com/r/GUIX/top/?t=week",
+            author=attrs.get("author", ""),
+            published_at=published.isoformat(),
+            updated_at=published.isoformat(),
+            score=score + comments * 2 + bonus,
+            signals={"upvotes": score, "comments": comments},
+            tags=tags,
+            excerpt=title,
+        ))
+    return items
 
 
 def collect_reddit(since: datetime, until: datetime) -> tuple[SourceStatus, list[Item]]:
-    url = "https://oauth.reddit.com/r/GUIX/new?limit=100"
+    # Scrape the public old.reddit.com "top" listing for the week. No API
+    # credentials are needed; scores and comment counts come from the page's
+    # data-* attributes, which RSS/JSON feeds gate behind OAuth.
+    url = "https://old.reddit.com/r/GUIX/top/?t=week"
     status = SourceStatus("reddit-r-guix", "reddit", url)
     items: list[Item] = []
-    token = reddit_token()
-    if not token:
-        status.status = "warning"
-        status.warnings.append("REDDIT_CLIENT_ID and REDDIT_CLIENT_SECRET are not configured; Reddit skipped because RSS has no score/comment signals")
-        return status, items
     try:
-        data = json.loads(http_get(url, {"Authorization": f"Bearer {token}"}))
-        for child in data.get("data", {}).get("children", []):
-            post = child["data"]
-            published = datetime.fromtimestamp(post["created_utc"], timezone.utc)
-            if published < since or published > until:
-                continue
-            title = post["title"]
-            bonus, tags = keyword_score(title + " " + post.get("selftext", ""))
-            items.append(Item(
-                id=f"reddit:{post['id']}",
-                source="reddit-r-guix",
-                kind="reddit-post",
-                title=title,
-                url="https://www.reddit.com" + post["permalink"],
-                author=post.get("author", ""),
-                published_at=published.isoformat(),
-                updated_at=published.isoformat(),
-                score=int(post.get("score", 0)) + int(post.get("num_comments", 0)) * 2 + bonus,
-                signals={"upvotes": post.get("score", 0), "comments": post.get("num_comments", 0)},
-                tags=tags,
-                excerpt=normalize_excerpt(post.get("selftext", "") or title),
-            ))
+        html_text = http_get(url).decode("utf-8", errors="replace")
+        items = parse_reddit_html(html_text, since, until)
         status.item_count = len(items)
     except Exception as exc:
         status.status = "warning"
         status.warnings.append(str(exc))
     return status, items
+
+
+def mastodon_item_from_status(
+    post: dict,
+    *,
+    base: str,
+    tag: str,
+    source_name: str,
+    timeline_url: str,
+    since: datetime,
+    until: datetime,
+) -> Item | None:
+    """Build an Item from one Mastodon status, or None if out of the window.
+
+    The first ``image`` media attachment seeds the link-preview thumbnail
+    (``preview_url`` + its ``description`` alt text). Posts without an image
+    attachment simply leave the thumbnail fields empty.
+    """
+    published = parse_iso(post["created_at"])
+    if published < since or published > until:
+        return None
+    account = post.get("account", {})
+    content = strip_html(post.get("content", ""))
+    title = content or post.get("url") or "Mastodon post"
+    replies = int(post.get("replies_count", 0))
+    boosts = int(post.get("reblogs_count", 0))
+    favorites = int(post.get("favourites_count", 0))
+    bonus, tags = keyword_score(content)
+    thumbnail = ""
+    image_alt = ""
+    for attachment in post.get("media_attachments", []):
+        if attachment.get("type") == "image" and attachment.get("preview_url"):
+            thumbnail = attachment["preview_url"]
+            image_alt = attachment.get("description") or ""
+            break
+    return Item(
+        id=f"mastodon:{post.get('id')}",
+        source=source_name,
+        kind="social-post",
+        title=title,
+        url=post.get("url") or post.get("uri") or timeline_url,
+        author=account.get("acct", ""),
+        published_at=published.isoformat(),
+        updated_at=published.isoformat(),
+        score=favorites + boosts * 2 + replies * 2 + bonus,
+        signals={"favorites": favorites, "boosts": boosts, "replies": replies, "tag": tag, "instance": base},
+        tags=tags + [f"#{tag}"],
+        excerpt=content,
+        thumbnail=thumbnail,
+        image_alt=image_alt,
+    )
 
 
 def collect_mastodon_tag(instance: str, tag: str, since: datetime, until: datetime) -> tuple[SourceStatus, list[Item]]:
@@ -427,30 +487,17 @@ def collect_mastodon_tag(instance: str, tag: str, since: datetime, until: dateti
     try:
         data = json.loads(http_get(url))
         for post in data:
-            published = parse_iso(post["created_at"])
-            if published < since or published > until:
-                continue
-            account = post.get("account", {})
-            content = strip_html(post.get("content", ""))
-            title = content or post.get("url") or "Mastodon post"
-            replies = int(post.get("replies_count", 0))
-            boosts = int(post.get("reblogs_count", 0))
-            favorites = int(post.get("favourites_count", 0))
-            bonus, tags = keyword_score(content)
-            items.append(Item(
-                id=f"mastodon:{post.get('id')}",
-                source=status.name,
-                kind="social-post",
-                title=title,
-                url=post.get("url") or post.get("uri") or url,
-                author=account.get("acct", ""),
-                published_at=published.isoformat(),
-                updated_at=published.isoformat(),
-                score=favorites + boosts * 2 + replies * 2 + bonus,
-                signals={"favorites": favorites, "boosts": boosts, "replies": replies, "tag": tag, "instance": base},
-                tags=tags + [f"#{tag}"],
-                excerpt=content,
-            ))
+            item = mastodon_item_from_status(
+                post,
+                base=base,
+                tag=tag,
+                source_name=status.name,
+                timeline_url=url,
+                since=since,
+                until=until,
+            )
+            if item is not None:
+                items.append(item)
         status.item_count = len(items)
     except Exception as exc:
         status.status = "warning"

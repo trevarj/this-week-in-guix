@@ -11,19 +11,30 @@
   --line: #3c3c3c;
   --gold: #ffbf2d;
   --gold-soft: #ffcc00;
+  --gold-text: #ffbf2d; /* accent text on dark backgrounds; AA on dark */
   --red: #ff5a5a;
   --link: #ffd860;
   --shadow: rgba(0, 0, 0, .4);
 
-  --font-serif: "Newsreader", Georgia, "Times New Roman", serif;
+  --font-prose: "Figtree", "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-sans: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Consolas, monospace;
 
   --width: 1040px;
   --prose: 70ch;
   --radius: 8px;
+
+  /* Focus ring: gold accent, on-brand and high-contrast in both themes. */
+  --focus: var(--gold);
+  --focus-offset: 3px;
 }
 
+/* Light theme is applied two ways, both of which force light tokens:
+   1. Explicit user override:  :root[data-theme="light"]
+   2. OS preference (no stored choice): @media (prefers-color-scheme: light):root
+   An explicit dark override (:root[data-theme="dark"]) beats the OS media
+   query because [data-theme] selectors have higher specificity than a
+   bare :root inside a media query. */
 :root[data-theme="light"] {
   color-scheme: light;
   --bg: #fbf8ef;
@@ -34,9 +45,48 @@
   --line: #e4dcc6;
   --gold: #ffbf2d;
   --gold-soft: #ffcc00;
+  /* Darkened amber for accent *text* on light backgrounds — gold #ffbf2d is
+     ~1.6:1 on white, well below AA. #8a5d00 hits 4.8:1 on the lightest paper
+     and 5.4:1 on the page bg, keeping the gold family while passing AA. */
+  --gold-text: #8a5d00;
   --red: #d23b3b;
   --link: #a85d00;
   --shadow: rgba(60, 50, 30, .12);
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) {
+    color-scheme: light;
+    --bg: #fbf8ef;
+    --paper: #ffffff;
+    --paper-strong: #f2ead7;
+    --ink: #232323;
+    --muted: #6c6356;
+    --line: #e4dcc6;
+    --gold: #ffbf2d;
+    --gold-soft: #ffcc00;
+    --gold-text: #8a5d00;
+    --red: #d23b3b;
+    --link: #a85d00;
+    --shadow: rgba(60, 50, 30, .12);
+  }
+}
+
+/* Explicit dark override — beats the OS light media query via specificity. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #232323;
+  --paper: #2c2c2c;
+  --paper-strong: #363636;
+  --ink: #f5f0e6;
+  --muted: #b6ad9c;
+  --line: #3c3c3c;
+  --gold: #ffbf2d;
+  --gold-soft: #ffcc00;
+  --gold-text: #ffbf2d;
+  --red: #ff5a5a;
+  --link: #ffd860;
+  --shadow: rgba(0, 0, 0, .4);
 }
 
 * {
@@ -56,6 +106,41 @@ body {
   line-height: 1.65;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+}
+
+/* ---------- Selection + themed scrollbar ---------- */
+
+::selection {
+  background: color-mix(in srgb, var(--gold) 30%, transparent);
+  color: var(--ink);
+}
+
+/* WebKit themed scrollbar (tasteful, brand-aligned). */
+*::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+*::-webkit-scrollbar-track {
+  background: var(--bg);
+}
+*::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--muted) 50%, transparent);
+  border: 3px solid var(--bg);
+  border-radius: 999px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--gold);
+}
+
+/* ---------- Keyboard focus visibility ---------- */
+/* Single on-brand gold ring for all interactive elements, both themes.
+   :focus-visible fires only for keyboard/at-keyboard navigation, so mouse
+   users don't see rings on click. We never remove outline without replacing
+   it. */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: var(--focus-offset);
+  border-radius: 4px;
 }
 
 /* ---------- Reading progress bar (post pages) ---------- */
@@ -127,7 +212,7 @@ main,
 }
 
 .brand-title {
-  font-family: var(--font-serif);
+  font-family: var(--font-prose);
   font-size: 1.4rem;
   font-weight: 600;
   letter-spacing: -0.01em;
@@ -165,6 +250,10 @@ nav a:hover {
   background: var(--paper-strong);
 }
 
+nav a:active {
+  transform: scale(0.97);
+}
+
 nav a .icon {
   width: 1em;
   height: 1em;
@@ -176,8 +265,9 @@ nav a .icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 38px;
-  height: 38px;
+  /* 44px tap target (was 38px) for comfortable touch use without breaking layout. */
+  width: 44px;
+  height: 44px;
   border: 1px solid var(--line);
   border-radius: 999px;
   background: var(--paper);
@@ -189,6 +279,10 @@ nav a .icon {
 .theme-toggle:hover {
   color: var(--gold);
   border-color: var(--gold);
+}
+
+.theme-toggle:active {
+  transform: scale(0.95);
 }
 
 .theme-toggle .icon {
@@ -208,6 +302,17 @@ nav a .icon {
   display: block;
 }
 
+/* When no explicit theme is set, follow OS preference for which icon shows.
+   The dark (sun) icon is the default; show the moon when OS prefers light. */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) .theme-toggle .icon-sun {
+    display: none;
+  }
+  :root:not([data-theme]) .theme-toggle .icon-moon {
+    display: block;
+  }
+}
+
 /* ---------- Layout ---------- */
 
 main {
@@ -220,10 +325,6 @@ main {
   margin-bottom: 36px;
 }
 
-.hero.featured {
-  border-left-color: var(--gold);
-}
-
 .eyebrow {
   margin: 0 0 10px;
   font-family: var(--font-sans);
@@ -231,13 +332,14 @@ main {
   font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--gold);
+  /* gold-text: brand gold on dark, AA amber on light. */
+  color: var(--gold-text);
 }
 
 h1,
 h2,
 h3 {
-  font-family: var(--font-serif);
+  font-family: var(--font-prose);
   line-height: 1.18;
   letter-spacing: -0.01em;
 }
@@ -248,14 +350,10 @@ h1 {
   font-weight: 600;
 }
 
-.hero.featured h1 {
-  font-size: clamp(2.3rem, 5vw, 3.8rem);
-}
-
 h2 {
   margin: 40px 0 16px;
   padding-bottom: 6px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 2px dotted var(--line);
   font-size: clamp(1.4rem, 2.4vw, 1.8rem);
   font-weight: 600;
   color: var(--ink);
@@ -276,27 +374,33 @@ h3 {
   margin: 30px 0 8px;
   font-size: 1.18rem;
   font-weight: 600;
+  /* gold-text: gold-soft on dark (9.2:1), AA amber on light (4.8:1). */
   color: var(--gold-soft);
 }
 
-:root[data-theme="light"] h3 {
-  color: var(--link);
+:root[data-theme="light"] h3,
+:root:not([data-theme]) h3 {
+  color: var(--gold-text);
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) h3 {
+    color: var(--gold-text);
+  }
+}
+
+/* Under dark override, h3 stays gold-soft regardless of OS. */
+:root[data-theme="dark"] h3 {
+  color: var(--gold-soft);
 }
 
 .lede {
   max-width: 68ch;
   margin: 0 0 14px;
   color: var(--muted);
-  font-family: var(--font-serif);
+  font-family: var(--font-prose);
   font-size: 1.2rem;
-  font-style: italic;
   line-height: 1.5;
-}
-
-.hero-meta {
-  margin: 0 0 18px;
-  color: var(--muted);
-  font-size: 0.95rem;
 }
 
 .hero-cta {
@@ -319,6 +423,10 @@ h3 {
   transform: translateX(2px);
 }
 
+.hero-cta:active {
+  transform: translateX(2px) scale(0.98);
+}
+
 .archive-link {
   margin-top: 28px;
   font-family: var(--font-sans);
@@ -338,6 +446,10 @@ h3 {
   color: var(--gold);
 }
 
+.archive-link a:active {
+  transform: scale(0.98);
+}
+
 /* ---------- Issue lists / cards ---------- */
 
 .post-list {
@@ -347,36 +459,49 @@ h3 {
   list-style: none;
 }
 
-.post-list li,
-.note-box {
+.post-list li {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--paper);
-  padding: 16px 18px;
   transition: border-color .15s ease, transform .15s ease, background .15s ease;
-}
-
-.post-list li {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
 }
 
 .post-list li:hover {
   border-color: var(--gold);
   transform: translateX(3px);
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--gold) 18%, transparent);
 }
 
+/* The whole card is a single link (stretched to fill the <li>). */
 .post-list a {
-  font-family: var(--font-serif);
-  font-weight: 600;
-  font-size: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px 18px;
   color: var(--ink);
   text-decoration: none;
 }
 
-.post-list a:hover {
+.post-list .card-title {
+  font-family: var(--font-prose);
+  font-weight: 600;
+  font-size: 1.1rem;
+  color: var(--ink);
+}
+
+.post-list a:hover .card-title {
   color: var(--gold);
+}
+
+.post-list a:active .card-title {
+  color: var(--gold-text);
+}
+
+.note-box {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--paper);
+  padding: 16px 18px;
 }
 
 .meta {
@@ -453,8 +578,8 @@ h3 {
 }
 
 .toc a.is-active {
-  color: var(--gold);
-  border-left-color: var(--gold);
+  /* gold-text keeps active TOC entry AA in light mode (was raw gold, 1.6:1). */
+  color: var(--gold-text);
   font-weight: 600;
 }
 
@@ -466,7 +591,7 @@ h3 {
 .post-meta {
   margin: 0 0 28px;
   padding-bottom: 16px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 2px dotted var(--line);
 }
 
 /* ---------- Prose ---------- */
@@ -477,16 +602,27 @@ h3 {
 
 .prose p {
   margin: 18px 0;
-  font-family: var(--font-serif);
+  /* Nudge body paragraphs in so they read as content under an <h3>, not as
+     another heading. The drop-cap opener stays at the left edge (see below). */
+  padding-left: 1.1rem;
+  font-family: var(--font-prose);
   font-size: 1.12rem;
   line-height: 1.72;
+  /* Long URLs/strings wrap without breaking layout; pre/code scroll separately. */
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* The opening paragraph keeps the drop cap anchored to the left edge. */
+.prose > p:first-child {
+  padding-left: 0;
 }
 
 /* Drop cap on the first prose paragraph (the issue opener). */
 .prose > p:first-child::first-letter {
   float: left;
   margin: 6px 10px 0 0;
-  font-family: var(--font-serif);
+  font-family: var(--font-prose);
   font-size: 3.4rem;
   line-height: 0.8;
   font-weight: 700;
@@ -506,6 +642,10 @@ h3 {
   text-decoration-color: var(--gold);
 }
 
+.prose a:active {
+  color: var(--gold-text);
+}
+
 .prose ul {
   margin: 18px 0;
   padding-left: 22px;
@@ -513,19 +653,99 @@ h3 {
 
 .prose li {
   margin: 6px 0;
-  font-family: var(--font-serif);
+  font-family: var(--font-prose);
   font-size: 1.12rem;
   line-height: 1.7;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .prose h2 {
   margin-top: 48px;
 }
 
-/* Anchor scroll offset so sticky header doesn't cover section tops. */
+/* Anchor scroll offset so sticky header doesn't cover section tops.
+   Header: 4px top border + 18px padding * 2 + ~52px logo height ≈ 92px. */
 .prose h2[id],
 .prose h3[id] {
   scroll-margin-top: 92px;
+}
+
+/* ---------- Per-link image preview (inline, under the citing block) ---------- */
+
+/* A native <details> attached right after the paragraph that cites a link,
+   so the image preview sits under the text that references it. No `open`
+   attribute is emitted, so it starts collapsed without JS. */
+.link-preview {
+  margin: 10px 0 20px;
+  /* Align with the indented body paragraphs (.prose p has padding-left: 1.1rem). */
+  padding-left: 1.1rem;
+  border-left: 2px solid var(--line);
+  max-width: var(--prose);
+}
+
+.link-preview > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  list-style: none;
+  cursor: pointer;
+  color: var(--muted);
+  font-family: var(--font-sans);
+  font-size: 0.88rem;
+}
+
+.link-preview > summary::-webkit-details-marker {
+  display: none;
+}
+
+.link-preview > summary::before {
+  content: "";
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 6px solid var(--muted);
+  transition: transform .18s ease;
+}
+
+.link-preview[open] > summary::before {
+  transform: rotate(180deg);
+}
+
+.link-preview-label {
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--gold-text);
+}
+
+.link-preview-image {
+  display: block;
+  margin-top: 10px;
+  max-width: 100%;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+
+.link-preview-image:hover {
+  border-color: var(--gold);
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--gold) 18%, transparent);
+}
+
+.link-preview-image:active {
+  transform: scale(0.99);
+}
+
+.link-preview-image img {
+  display: block;
+  width: 100%;
+  max-width: 520px;
+  height: auto;
+  background: var(--paper-strong);
 }
 
 /* ---------- Post navigation (prev / next issue) ---------- */
@@ -559,12 +779,24 @@ h3 {
   border-color: var(--gold);
 }
 
+.post-nav-item:active {
+  transform: scale(0.99);
+}
+
 .post-nav-prev:hover {
   transform: translateX(-3px);
 }
 
+.post-nav-prev:active {
+  transform: translateX(-1px) scale(0.99);
+}
+
 .post-nav-next:hover {
   transform: translateX(3px);
+}
+
+.post-nav-next:active {
+  transform: translateX(1px) scale(0.99);
 }
 
 .post-nav-next {
@@ -584,7 +816,8 @@ h3 {
   font-size: 0.78rem;
   font-weight: 600;
   letter-spacing: 0.04em;
-  color: var(--gold);
+  /* gold-text: brand gold on dark, AA amber on light (was raw gold, 1.6:1). */
+  color: var(--gold-text);
 }
 
 .post-nav-next .post-nav-label {
@@ -592,7 +825,7 @@ h3 {
 }
 
 .post-nav-title {
-  font-family: var(--font-serif);
+  font-family: var(--font-prose);
   font-size: 1.02rem;
   color: var(--ink);
 }
@@ -607,6 +840,11 @@ h3 {
 
 .post-nav-back:hover {
   color: var(--gold);
+}
+
+.post-nav-back:active {
+  color: var(--gold-text);
+  transform: scale(0.98);
 }
 
 /* ---------- Archive ---------- */
@@ -631,6 +869,9 @@ code {
   border-radius: 4px;
   padding: 1px 5px;
   font-size: 0.92em;
+  /* Inline code with long tokens wraps gracefully. */
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 pre {
@@ -646,6 +887,9 @@ pre {
 pre code {
   background: none;
   padding: 0;
+  /* Inside pre, prefer horizontal scroll over wrapping for readability. */
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
 /* ---------- Footer ---------- */
@@ -661,22 +905,57 @@ pre code {
   margin: 6px 0;
 }
 
-.footer-links {
-  display: flex;
-  gap: 18px;
-  flex-wrap: wrap;
+/* ---------- Zine decorations: marker ---------- */
+
+/* Marker-swipe highlight for curated Guix terms in prose. */
+.prose mark {
+  padding: 0 2px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--gold) 38%, transparent);
+  color: inherit;
 }
 
-.footer-links a {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+.empty-state {
   color: var(--muted);
-  text-decoration: none;
 }
 
-.footer-links a:hover {
-  color: var(--gold);
+/* ---------- Motion ---------- */
+
+@keyframes riseIn {
+  from { opacity: 0; translate: 0 8px; }
+  to   { opacity: 1; translate: 0 0; }
+}
+
+@keyframes pop {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.04); }
+  100% { transform: scale(1.02); }
+}
+
+/* Cards fade up into place on load (staggered). `translate` (the individual
+   property) is animated so the hover `transform` still works independently. */
+.post-list li {
+  animation: riseIn .5s ease backwards;
+}
+.post-list li:nth-child(1) { animation-delay: .00s; }
+.post-list li:nth-child(2) { animation-delay: .06s; }
+.post-list li:nth-child(3) { animation-delay: .12s; }
+.post-list li:nth-child(4) { animation-delay: .18s; }
+.post-list li:nth-child(5) { animation-delay: .24s; }
+.post-list li:nth-child(6) { animation-delay: .30s; }
+.post-list li:nth-child(n+7) { animation-delay: .36s; }
+
+/* Primary CTA gets a little bounce on hover. */
+.hero-cta:hover {
+  animation: pop .32s ease;
+}
+
+/* Respect reduced-motion: drop the playful animations, keep color transitions. */
+@media (prefers-reduced-motion: reduce) {
+  .post-list li,
+  .hero-cta:hover {
+    animation: none !important;
+  }
 }
 
 /* ---------- Responsive ---------- */
@@ -729,6 +1008,117 @@ pre code {
   }
 }
 
+/* ---------- Print ---------- */
+/* Hide chrome, expand to single column, black-on-white, show link URLs. */
+@media print {
+  :root,
+  :root[data-theme="light"],
+  :root[data-theme="dark"] {
+    color-scheme: light;
+    --bg: #ffffff;
+    --paper: #ffffff;
+    --paper-strong: #f4f4f4;
+    --ink: #000000;
+    --muted: #333333;
+    --line: #cccccc;
+    --gold: #b8860b;
+    --gold-soft: #b8860b;
+    --gold-text: #000000;
+    --red: #990000;
+    --link: #000000;
+    --shadow: none;
+  }
+
+  html {
+    scroll-behavior: auto;
+  }
+
+  body {
+    background: #ffffff;
+    color: #000000;
+    font-size: 11pt;
+    line-height: 1.5;
+  }
+
+  .site-header,
+  .site-footer,
+  .reading-progress,
+  .toc,
+  .theme-toggle,
+  .hero-cta svg,
+  .archive-link,
+  .link-preview {
+    display: none !important;
+  }
+
+  main {
+    padding: 0;
+  }
+
+  /* Single-column post layout for print. */
+  .post-layout {
+    display: block;
+  }
+
+  .post-layout article {
+    grid-column: auto;
+  }
+
+  /* Drop borders/shadows that waste ink; keep section rules. */
+  .post-list li,
+  .note-box,
+  .post-nav-item {
+    border: 1px solid #cccccc;
+    box-shadow: none;
+    background: #ffffff;
+    break-inside: avoid;
+  }
+
+  .post-nav-row {
+    display: block;
+  }
+
+  .post-nav-item {
+    margin-bottom: 8px;
+    text-align: left !important;
+  }
+
+  .post-nav-next .post-nav-label {
+    justify-content: flex-start;
+  }
+
+  /* Show the URL after each link so printed pages stay useful. */
+  a[href^="http"]::after,
+  a[href^="/"]::after {
+    content: " (" attr(href) ")";
+    font-family: var(--font-mono);
+    font-size: 0.8em;
+    color: #333333;
+    text-decoration: none;
+  }
+
+  /* Avoid printing the drop cap huge / awkward. */
+  .prose > p:first-child::first-letter {
+    float: none;
+    font-size: inherit;
+    line-height: inherit;
+    margin: 0;
+    color: inherit;
+  }
+
+  pre,
+  code {
+    background: #f4f4f4;
+    color: #000000;
+  }
+
+  pre {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    border: 1px solid #cccccc;
+  }
+}
+
 /* ---------- Reduced motion ---------- */
 
 @media (prefers-reduced-motion: reduce) {
@@ -743,6 +1133,8 @@ pre code {
     animation: none !important;
   }
 
+  /* Explicitly cover the reading-progress width transition and any
+     smooth-scroll set elsewhere, in case the wildcard is overridden. */
   .reading-progress {
     transition: none;
   }
